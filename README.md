@@ -65,6 +65,13 @@ pip install git+https://github.com/iejMac/video2dataset.git
 
 conda install xformers
 ```
+## 🛞 Model Checkpoints
+
+|Model|Resolution|Checkpoints|
+|:---------|:---------|:--------|
+|T2V-Turbo (VC2)|320x512|[![HuggingFace](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Model-blue)](https://huggingface.co/jiachenli-ucsb/T2V-Turbo-VC2/blob/main/unet_lora.pt)
+|T2V-Turbo (MS)|256x256|[![HuggingFace](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Model-blue)](https://huggingface.co/jiachenli-ucsb/T2V-Turbo-MS/blob/main/unet_lora.pt)
+
 
 ## 🚀 Inference
 
