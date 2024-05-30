@@ -1,18 +1,12 @@
 # <span style="font-family: 'Courier New', monospace; font-weight: bold">T2V-Turbo</span>: Breaking the Quality Bottleneck of Video Consistency Model with Mixed Reward Feedback
 
-## 4-step Text-to-video Generation 🚀
+## Fast and High-Quality Text-to-video Generation 🚀
 
+### 4-Step Results
 <table class="center">
-  <td>
-  <video poster="" autoplay controls muted loop height="150%" playbackRate=2.0><source src="https://rg-lcd.s3.amazonaws.com/t2v-turbo-demo/t2v-turbo-vc2/4steps/0273.mp4" type="video/mp4"></video>
-  </td>
-  <td>
-  <video poster="" autoplay controls muted loop height="150%" playbackRate=2.0><source src="https://rg-lcd.s3.amazonaws.com/t2v-turbo-demo/t2v-turbo-vc2/4steps/0054.mp4" type="video/mp4"></video>
-  </td>
-  <td>
-  <video poster="" autoplay controls muted loop height="150%" playbackRate=2.0><source src="https://rg-lcd.s3.amazonaws.com/t2v-turbo-demo/t2v-turbo-vc2/4steps/0262.mp4" type="video/mp4"></video>
-  </td>
-
+  <td><img src=assets/videos/4steps/0273.gif width="320"></td></td>
+  <td><img src=assets/videos/4steps/0054.gif width="320"></td></td>
+  <td><img src=assets/videos/4steps/0262.gif width="320"></td></td></td>
   <tr>
   <td style="text-align:center;" width="320">With the style of low-poly game art, A majestic, white horse gallops gracefully across a moonlit beach.</td>
   <td style="text-align:center;" width="320">medium shot of Christine, a beautiful 25-year-old brunette resembling Selena Gomez, anxiously looking up as she walks down a New York street, cinematic style</td>
@@ -21,20 +15,39 @@
 </table >
 
 <table class="center">
-  <td>
-  <video poster="" autoplay controls muted loop height="150%" playbackRate=2.0><source src="https://rg-lcd.s3.amazonaws.com/t2v-turbo-demo/t2v-turbo-vc2/4steps/0023.mp4" type="video/mp4"></video>
-  </td>
-  <td>
-  <video poster="" autoplay controls muted loop height="150%" playbackRate=2.0><source src="https://rg-lcd.s3.amazonaws.com/t2v-turbo-demo/t2v-turbo-vc2/4steps/0021.mp4" type="video/mp4"></video>
-  </td>
-  <td>
-  <video poster="" autoplay controls muted loop height="150%" playbackRate=2.0><source src="https://rg-lcd.s3.amazonaws.com/t2v-turbo-demo/t2v-turbo-vc2/4steps/0064.mp4" type="video/mp4"></video>
-  </td>
+  <td><img src=assets/videos/4steps/0023.gif width="320"></td></td>
+  <td><img src=assets/videos/4steps/0021.gif width="320"></td></td>
+  <td><img src=assets/videos/4steps/0064.gif width="320"></td></td>
 
   <tr>
   <td style="text-align:center;" width="320">a dog wearing vr goggles on a boat</td>
   <td style="text-align:center;" width="320">Pikachu snowboarding</td>
   <td style="text-align:center;" width="320">a girl floating underwater </td>
+  <tr>
+</table >
+
+### 8-Step Results
+
+<table class="center">
+  <td><img src=assets/videos/8steps/0026.gif width="320"></td></td>
+  <td><img src=assets/videos/8steps/0062.gif width="320"></td></td>
+  <td><img src=assets/videos/8steps/0065.gif width="320"></td></td></td>
+  <tr>
+  <td style="text-align:center;" width="320">Mickey Mouse is dancing on white background</td>
+  <td style="text-align:center;" width="320">light wind, feathers moving, she moves her gaze, 4k</td>
+  <td style="text-align:center;" width="320">fashion portrait shoot of a girl in colorful glasses, a breeze moves her hair </td>
+  <tr>
+</table >
+
+<table class="center">
+  <td><img src=assets/videos/8steps/0348.gif width="320"></td></td>
+  <td><img src=assets/videos/8steps/0266.gif width="320"></td></td>
+  <td><img src=assets/videos/8steps/0278.gif width="320"></td></td>
+
+  <tr>
+  <td style="text-align:center;" width="320">With the style of abstract cubism, The flowers swayed in the gentle breeze, releasing their sweet fragrance.</td>
+  <td style="text-align:center;" width="320">impressionist style, a yellow rubber duck floating on the wave on the sunset</td>
+  <td style="text-align:center;" width="320">A Egyptian tomp hieroglyphics painting ofA regal lion, decked out in a jeweled crown, surveys his kingdom.</td>
   <tr>
 </table >
 
