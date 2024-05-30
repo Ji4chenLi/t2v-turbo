@@ -173,13 +173,11 @@ if __name__ == "__main__":
     parser.add_argument(
         "--unet_dir",
         type=str,
-        default="/data4/jiachenli/rg-vlcm/output/vlcm_lora_vc2_viclip2_2_hpsv2_1_8frames_corrected/checkpoint-10000/unet_lora.pt",
         help="Directory of the UNet model",
     )
     parser.add_argument(
         "--base_model_dir",
         type=str,
-        default="/data4/jiachenli/.huggingface/hub/models--VideoCrafter--VideoCrafter2/snapshots/7b4079838622fcba3fc2c9575210df3ed1cb8d69/model.ckpt",
         help="Directory of the VideoCrafter2 checkpoint.",
     )
 
