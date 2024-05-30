@@ -4,9 +4,9 @@
 
 ### 4-Step Results
 <table class="center">
-  <td><img src=assets/videos/4steps/0273.gif width="320"></td></td>
-  <td><img src=assets/videos/4steps/0054.gif width="320"></td></td>
-  <td><img src=assets/videos/4steps/0262.gif width="320"></td></td></td>
+  <td><img src=assets/demo_videos/4steps/0273.gif width="320"></td></td>
+  <td><img src=assets/demo_videos/4steps/0054.gif width="320"></td></td>
+  <td><img src=assets/demo_videos/4steps/0262.gif width="320"></td></td></td>
   <tr>
   <td style="text-align:center;" width="320">With the style of low-poly game art, A majestic, white horse gallops gracefully across a moonlit beach.</td>
   <td style="text-align:center;" width="320">medium shot of Christine, a beautiful 25-year-old brunette resembling Selena Gomez, anxiously looking up as she walks down a New York street, cinematic style</td>
@@ -15,9 +15,9 @@
 </table >
 
 <table class="center">
-  <td><img src=assets/videos/4steps/0023.gif width="320"></td></td>
-  <td><img src=assets/videos/4steps/0021.gif width="320"></td></td>
-  <td><img src=assets/videos/4steps/0064.gif width="320"></td></td>
+  <td><img src=assets/demo_videos/4steps/0023.gif width="320"></td></td>
+  <td><img src=assets/demo_videos/4steps/0021.gif width="320"></td></td>
+  <td><img src=assets/demo_videos/4steps/0064.gif width="320"></td></td>
 
   <tr>
   <td style="text-align:center;" width="320">a dog wearing vr goggles on a boat</td>
@@ -29,9 +29,9 @@
 ### 8-Step Results
 
 <table class="center">
-  <td><img src=assets/videos/8steps/0026.gif width="320"></td></td>
-  <td><img src=assets/videos/8steps/0062.gif width="320"></td></td>
-  <td><img src=assets/videos/8steps/0065.gif width="320"></td></td></td>
+  <td><img src=assets/demo_videos/8steps/0026.gif width="320"></td></td>
+  <td><img src=assets/demo_videos/8steps/0062.gif width="320"></td></td>
+  <td><img src=assets/demo_videos/8steps/0065.gif width="320"></td></td></td>
   <tr>
   <td style="text-align:center;" width="320">Mickey Mouse is dancing on white background</td>
   <td style="text-align:center;" width="320">light wind, feathers moving, she moves her gaze, 4k</td>
@@ -40,9 +40,9 @@
 </table >
 
 <table class="center">
-  <td><img src=assets/videos/8steps/0348.gif width="320"></td></td>
-  <td><img src=assets/videos/8steps/0266.gif width="320"></td></td>
-  <td><img src=assets/videos/8steps/0278.gif width="320"></td></td>
+  <td><img src=assets/demo_videos/8steps/0348.gif width="320"></td></td>
+  <td><img src=assets/demo_videos/8steps/0266.gif width="320"></td></td>
+  <td><img src=assets/demo_videos/8steps/0278.gif width="320"></td></td>
 
   <tr>
   <td style="text-align:center;" width="320">With the style of abstract cubism, The flowers swayed in the gentle breeze, releasing their sweet fragrance.</td>
