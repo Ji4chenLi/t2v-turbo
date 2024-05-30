@@ -3,13 +3,12 @@
 ## 🏭 Installation
 
 ```
-pip install accelerate transformer diffusers webdataset loralib peft pytorch_lightning open_clip_torch hpsv2 peft wandb pvav einops packaging
+pip install accelerate transformers diffusers webdataset loralib peft pytorch_lightning open_clip_torch hpsv2 peft wandb av einops packaging omegaconf opencv-python kornia
 
 pip install flash-attn --no-build-isolation
 git clone https://github.com/Dao-AILab/flash-attention.git
 cd flash-attention
-pip install csrc/fused_dense_lib
-pip install csrc/layer_norm
+pip install csrc/fused_dense_lib csrc/layer_norm
 
 pip install git+https://github.com/iejMac/video2dataset.git
 
