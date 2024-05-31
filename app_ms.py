@@ -173,7 +173,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "--unet_dir",
         type=str,
-        default="/data4/jiachenli/rg-vlcm/output/rg_vlcm_lora_model_scope_vi_clip_3_hpsv2_2_random_crop/checkpoint-10000/unet_lora.pt",
         help="Directory of the UNet model",
     )
     args = parser.parse_args()
