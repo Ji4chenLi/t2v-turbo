@@ -76,6 +76,9 @@ conda install xformers
 ## 🚀 Inference
 
 We provide local demo codes supported with gradio (For MacOS users, need to set the device="mps" in app.py; For Intel GPU users, set device="xpu" in app.py).
+
+> To play with our T2V-Turbo (VC2), please follow the steps below:
+
 1. Download the `unet_lora.pt` of our T2V-Turbo (VC2) [here](https://huggingface.co/jiachenli-ucsb/T2V-Turbo-VC2/blob/main/unet_lora.pt).
 
 2. Download the model checkpoint of VideoCrafter2 [here](https://huggingface.co/VideoCrafter/VideoCrafter2/blob/main/model.ckpt).
@@ -85,6 +88,17 @@ We provide local demo codes supported with gradio (For MacOS users, need to set 
 pip install gradio==3.48.0
 python app.py --unet_dir PATH_TO_UNET_LORA.pt --base_model_dir PATH_TO_VideoCrafter2_MODEL_CKPT
 ```
+
+> To play with our T2V-Turbo (MS), please follow the steps below:
+
+1. Download the `unet_lora.pt` of our T2V-Turbo (MS) [here](https://huggingface.co/jiachenli-ucsb/T2V-Turbo-MS/blob/main/unet_lora.pt).
+
+2. Launch the gradio demo with the following command:
+```
+pip install gradio==3.48.0
+python app_ms.py --unet_dir PATH_TO_UNET_LORA.pt
+```
+
 
 ## 🏋️ Training
 

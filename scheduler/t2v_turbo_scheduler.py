@@ -182,8 +182,8 @@ class T2VTurboScheduler(SchedulerMixin, ConfigMixin):
     def __init__(
         self,
         num_train_timesteps: int = 1000,
-        linear_start: float = 0.0001,
-        linear_end: float = 0.02,
+        linear_start: float = 0.00085,
+        linear_end: float = 0.012,
         beta_schedule: str = "scaled_linear",
         trained_betas: Optional[Union[np.ndarray, List[float]]] = None,
         clip_sample: bool = True,
