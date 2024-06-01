@@ -2,7 +2,7 @@
 
 ## Fast and High-Quality Text-to-video Generation 🚀
 
-[![Replicate](https://replicate.com/chenxwh/t2v-turbo/badge)](https://replicate.com/schenxwh/t2v-turbo) 
+[![Replicate](https://replicate.com/chenxwh/t2v-turbo/badge)](https://replicate.com/chenxwh/t2v-turbo) 
 
 ### 4-Step Results
 <table class="center">
