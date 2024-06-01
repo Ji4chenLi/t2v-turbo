@@ -2,6 +2,8 @@
 
 ## Fast and High-Quality Text-to-video Generation 🚀
 
+[![Replicate](https://replicate.com/chenxwh/t2v-turbo/badge)](https://replicate.com/schenxwh/t2v-turbo) 
+
 ### 4-Step Results
 <table class="center">
   <td><img src=assets/demo_videos/4steps/0273.gif width="320"></td></td>

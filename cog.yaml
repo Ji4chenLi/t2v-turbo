@@ -1,0 +1,34 @@
+# Configuration for Cog ⚙️
+# Reference: https://cog.run/yaml
+
+build:
+  gpu: true
+  system_packages:
+    - "libgl1-mesa-glx"
+    - "libglib2.0-0"
+  python_version: "3.11"
+  python_packages:
+    - torch==2.3.0
+    - torchvision==0.18.0
+    - transformers==4.41.2
+    - accelerate==0.30.1
+    - diffusers==0.28.0
+    - loralib==0.1.2
+    - peft==0.11.1
+    - setuptools==69.5.1
+    - pytorch_lightning
+    - open_clip_torch
+    - hpsv2 
+    - av 
+    - einops
+    - packaging
+    - omegaconf
+    - opencv-python
+    - kornia
+    - wandb
+  run:
+    - pip install --pre -U xformers
+    - pip install ipython
+    - pip install flash-attn --no-build-isolation
+    - curl -o /usr/local/bin/pget -L "https://github.com/replicate/pget/releases/download/v0.6.0/pget_linux_x86_64" && chmod +x /usr/local/bin/pget
+predict: "predict.py:Predictor"
