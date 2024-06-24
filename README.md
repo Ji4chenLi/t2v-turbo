@@ -1,5 +1,9 @@
 # <span style="font-family: 'Courier New', monospace; font-weight: bold">T2V-Turbo</span>: Breaking the Quality Bottleneck of Video Consistency Model with Mixed Reward Feedback
 
+
+## 🔔 News
+[06.24.2024] Release the training codes for T2V-Turbo (VC2).
+
 ## Fast and High-Quality Text-to-video Generation 🚀
 
 [![Replicate](https://replicate.com/chenxwh/t2v-turbo/badge)](https://replicate.com/chenxwh/t2v-turbo) 
@@ -56,7 +60,7 @@
 ## 🏭 Installation
 
 ```
-pip install accelerate transformers diffusers webdataset loralib peft pytorch_lightning open_clip_torch hpsv2 peft wandb av einops packaging omegaconf opencv-python kornia
+pip install accelerate transformers diffusers webdataset loralib peft pytorch_lightning open_clip_torch hpsv2 image-reward peft wandb av einops packaging omegaconf opencv-python kornia
 
 pip install flash-attn --no-build-isolation
 git clone https://github.com/Dao-AILab/flash-attention.git
@@ -104,8 +108,13 @@ python app_ms.py --unet_dir PATH_TO_UNET_LORA.pt
 
 ## 🏋️ Training
 
-To train T2V-Turbo (VC2), run the following command
+To train T2V-Turbo (VC2), first prepare the data and model as below
+1. Download the model checkpoint of VideoCrafter2 [here](https://huggingface.co/VideoCrafter/VideoCrafter2/blob/main/model.ckpt).
+2. Prepare the [WebVid-10M](https://github.com/m-bain/webvid) data. Save in the `webdataset` format.
+3. Download the [InternVid2 S2 Model](https://huggingface.co/OpenGVLab/InternVideo2-CLIP-1B-224p-f8) 
+4. Set `--pretrained_model_path`, `--train_shards_path_or_url` and `video_rm_ckpt_dir` accordingly in `train_t2v_turbo_vc2.sh`.
 
+Then run the following command:
 ```
 bash train_t2v_turbo_vc2.sh
 ```

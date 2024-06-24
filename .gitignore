@@ -162,3 +162,5 @@ cython_debug/
 #.idea/
 
 videos/
+wandb/
+output/
