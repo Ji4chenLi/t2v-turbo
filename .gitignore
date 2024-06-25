@@ -164,3 +164,4 @@ cython_debug/
 videos/
 wandb/
 output/
+.tmp/

@@ -60,7 +60,7 @@
 ## 🏭 Installation
 
 ```
-pip install accelerate transformers diffusers webdataset loralib peft pytorch_lightning open_clip_torch hpsv2 image-reward peft wandb av einops packaging omegaconf opencv-python kornia
+pip install accelerate transformers diffusers webdataset loralib peft pytorch_lightning open_clip_torch hpsv2 image-reward peft wandb av einops packaging omegaconf opencv-python kornia moviepy imageio
 
 pip install flash-attn --no-build-isolation
 git clone https://github.com/Dao-AILab/flash-attention.git
