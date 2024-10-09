@@ -1,19 +1,24 @@
 """video dataset creation"""
-
 import webdataset as wds
 from functools import partial
 from typing import List, Union
 
-from webdataset import WebLoader
-import sys
-
-from data.dataloader.custom_wds import (
+from .custom_wds import (
+    WebDatasetWithChangedDecoder,
     dict_collation_fn,
     TorchDataWebdataset,
 )
-from data.dataloader.filters import KeyFilter
-from data.dataloader.transform import VideoResizer, CustomTransforms
-from data.dataloader.video_decode import VideoDecorder
+from .transform import VideoResizer, CutsAdder, CustomTransforms
+from .video_decode import VideoDecorder, VideoDecorderWithCutDetection
+from .audio_decode import AudioDecoder
+from .filters import (
+    KeyFilter,
+    LanguageFilter,
+    AestheticsFilter,
+    UnsafeFilter,
+    UnusedKeyFilter,
+)  # pylint: disable=unused-import
+
 
 def reassemble(x):
     """
@@ -46,16 +51,21 @@ def get_video_dataset(
     repeat=1,
     drop_last=False,
     video_key="mp4",
+    cuts_key=None,
     decoder_kwargs=None,
     custom_transforms=None,
+    aesthetics_threshold=None,
+    allowed_languages=None,
+    p_unsafe_threshold=None,
     resize_size=None,
     crop_size=None,
     random_crop=False,
     original_height_key="original_height",
     original_width_key="original_width",
+    keys_to_remove: Union[str, List[str], None] = None,
     enforce_additional_keys=None,
     return_always: bool = False,
-    handler=wds.warn_and_continue,
+    handler=wds.reraise_exception,
 ):
     """
     Generates a webdataset given the specified parameters.
@@ -84,10 +94,12 @@ def get_video_dataset(
         WebDataset: The processed webdataset.
     """
 
-    assert decoder_kwargs is not None
-
+    if decoder_kwargs is None:
+        decoder_kwargs = {}
     if enforce_additional_keys is None:
         enforce_additional_keys = ["txt"]
+    if keys_to_remove is None:
+        keys_to_remove = []
 
     if isinstance(urls, str):
         urls = [urls]
@@ -98,91 +110,102 @@ def get_video_dataset(
         urls = urls[0]
 
     additional_decoder_kwargs = {}
-    dataset_cls = (
-        partial(
-            wds.WebDataset,
-            nodesplitter=wds.split_by_node,
+    if cuts_key:
+        dataset_cls = (
+            partial(
+                WebDatasetWithChangedDecoder,
+                nodesplitter=wds.split_by_node,
+            )
+            if not use_torchdata
+            else partial(
+                TorchDataWebdataset, repeat=repeat, drop_last=drop_last, return_always=return_always, handler=handler
+            )
         )
-        if not use_torchdata
-        else partial(
-            TorchDataWebdataset,
-            repeat=repeat,
-            drop_last=drop_last,
-            return_always=return_always,
-            handler=handler,
+        video_decoder_cls = partial(VideoDecorderWithCutDetection, cuts_key=cuts_key)
+        additional_decoder_kwargs = {"passthrough_keys": [video_key]}
+    elif video_key in ["mp3", "wav", "flac", "m4a"] and decoder_kwargs != {}:
+        dataset_cls = wds.WebDataset
+        video_decoder_cls = AudioDecoder  # type: ignore
+        decoder_kwargs["extension"] = video_key
+    elif decoder_kwargs == {}:  # nothing means just read the bytes
+        dataset_cls = (
+            partial(
+                wds.WebDataset,
+                nodesplitter=wds.split_by_node,
+            )
+            if not use_torchdata
+            else partial(
+                TorchDataWebdataset, repeat=repeat, drop_last=drop_last, return_always=return_always, handler=handler
+            )
         )
-    )
+        video_decoder_cls = None
+    else:
+        dataset_cls = (
+            partial(
+                wds.WebDataset,
+                nodesplitter=wds.split_by_node,
+            )
+            if not use_torchdata
+            else partial(
+                TorchDataWebdataset, repeat=repeat, drop_last=drop_last, return_always=return_always, handler=handler
+            )
+        )
+        video_decoder_cls = VideoDecorder  # type: ignore
 
     dset = dataset_cls(urls, shardshuffle=shuffle, handler=handler)
 
     if not use_torchdata:
         dset = dset.repeat(repeat).shuffle(shuffle, initial=shuffle)
 
+    unused_key_filter = UnusedKeyFilter(keys=keys_to_remove)
+    dset = dset.map(unused_key_filter, handler=handler)
+
+    # TODO: organize this such that you don't always need video.
+    # should work with audio-text, just text or whatever you might want
     enforce_keys = [video_key] + enforce_additional_keys
     key_filter = KeyFilter(enforce_keys)
     dset = dset.select(key_filter)
 
+    if cuts_key:
+        cut_adder = CutsAdder(cuts_key=cuts_key, video_key=video_key)
+        dset = dset.map(cut_adder, handler=handler)
+
+    aesthetics_filter = AestheticsFilter(aesthetic_thld=aesthetics_threshold)
+    language_filter = LanguageFilter(languages=allowed_languages)
+    unsafe_filter = UnsafeFilter(p_unsafe_threshold=p_unsafe_threshold)
+    # TODO: in the futuer only include filters we want to use based on params
+    filters = [aesthetics_filter, language_filter, unsafe_filter]
+
     # Decoding
-    dset = dset.decode(
-        VideoDecorder(**decoder_kwargs),
-        handler=handler,
-        **additional_decoder_kwargs,
-    ).map(reassemble, handler=handler)
+    if video_decoder_cls is not None:
+        dset = dset.decode(
+            video_decoder_cls(**decoder_kwargs),
+            handler=handler,
+            **additional_decoder_kwargs,
+        ).map(reassemble, handler=handler)
+
+    # Filters
+    for fltr in filters:
+        dset = dset.select(fltr)
 
     # Resizing
-    dset = dset.map(
-        VideoResizer(
-            size=resize_size,
-            crop_size=crop_size,
-            random_crop=random_crop,
-            key=video_key,
-            width_key=original_width_key,
-            height_key=original_height_key,
-        ),
-        handler=handler,
-    )
+    if decoder_kwargs != {}:  # bytes
+        dset = dset.map(
+            VideoResizer(
+                size=resize_size,
+                crop_size=crop_size,
+                random_crop=random_crop,
+                key=video_key,
+                width_key=original_width_key,
+                height_key=original_height_key,
+            ),
+            handler=handler,
+        )
 
     if custom_transforms:
         dset = dset.map(CustomTransforms(custom_transforms), handler=handler)
 
-    dset = dset.batched(
-        batch_size, partial=not drop_last, collation_fn=dict_collation_fn
-    )
+    if decoder_kwargs != {}:
+        dset = dset.batched(batch_size, partial=not drop_last, collation_fn=dict_collation_fn)
+
     return dset
-
-
-if __name__ == "__main__":
-    # WebVid validation split
-    SHARDS = "PATH/TO/SHARDS"
-
-    decoder_kwargs = {
-        "n_frames": 16,  # get 8 frames from each video
-        # "uniformly_sample": True,  # sample frames uniformly
-        "fps": 16,  # sample frames at 16 fps
-        "num_threads": 12,  # use 16 threads to decode the video
-    }
-    resize_size = crop_size = (320, 512)
-    batch_size = 2
-
-    dset = get_video_dataset(
-        urls=SHARDS,
-        batch_size=batch_size,
-        decoder_kwargs=decoder_kwargs,
-        resize_size=resize_size,
-        crop_size=crop_size,
-    )
-
-    num_workers = 6  # 6 dataloader workers
-
-    dl = WebLoader(dset, batch_size=None, num_workers=num_workers)
-
-    for sample in dl:
-        video_batch = sample["mp4"]
-        print(video_batch.shape)  # torch.Size([32, 8, 256, 256, 3])
-
-        # TODO: need to add option for text/metadata preprocessing (tokenization etc.)
-        text_batch = sample["txt"]
-        print(text_batch[0])
-        metadata_batch = sample["json"]
-        print(sample["json"][0]["videoid"])
-        break

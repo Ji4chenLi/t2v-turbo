@@ -1,11 +1,15 @@
 import ast
 import gc
-import torch
+import random
 
-from collections import OrderedDict
+import cv2
+import numpy as np
+import torch
+import torch.nn.functional as F
 
 from diffusers.models.attention_processor import AttnProcessor2_0
 from diffusers.models.attention import BasicTransformerBlock
+from decord import VideoReader
 import wandb
 
 
@@ -310,7 +314,8 @@ def update_ema(target_params, source_params, rate=0.99):
     :param rate: the EMA rate (closer to 1 means slower).
     """
     for targ, src in zip(target_params, source_params):
-        targ.detach().mul_(rate).add_(src, alpha=1 - rate)
+        src_to_dtype = src.to(targ.dtype)
+        targ.detach().mul_(rate).add_(src_to_dtype, alpha=1 - rate)
 
 
 def log_validation_video(pipeline, args, accelerator, save_fps):
@@ -328,22 +333,42 @@ def log_validation_video(pipeline, args, accelerator, save_fps):
         "With the style of van gogh, A young couple dances under the moonlight by the lake.",
         "A young woman with glasses is jogging in the park wearing a pink headband.",
         "Impressionist style, a yellow rubber duck floating on the wave on the sunset",
+        "Wolf, turns its head, in the wild",
+        "Iron man, walks, on the moon, 8k, high detailed, best quality",
     ]
 
     video_logs = []
 
+    use_motion_cond = getattr(args, "use_motion_cond", False)
+    motion_gs = getattr(args, "motion_gs", 0.)
     for _, prompt in enumerate(validation_prompts):
         with torch.autocast("cuda"):
+        for i in range(2):
             videos = pipeline(
                 prompt=prompt,
                 frames=args.n_frames,
-                num_inference_steps=4,
-                num_videos_per_prompt=2,
+                num_inference_steps=8 * (i + 1),
+                num_videos_per_prompt=1,
+                fps=args.fps,
+                use_motion_cond=use_motion_cond,
+                motion_gs=motion_gs,
+                lcm_origin_steps=args.num_ddim_timesteps,
                 generator=generator,
             )
             videos = (videos.clamp(-1.0, 1.0) + 1.0) / 2.0
-            videos = (videos * 255).to(torch.uint8).permute(0, 2, 1, 3, 4).cpu().numpy()
-        video_logs.append({"validation_prompt": prompt, "videos": videos})
+            videos = (
+                (videos * 255)
+                .to(torch.uint8)
+                .permute(0, 2, 1, 3, 4)
+                .cpu()
+                .numpy()
+            )
+        video_logs.append(
+            {
+                "validation_prompt": f"Steps={4 * (i + 1)}, {prompt}",
+                "videos": videos,
+            }
+        )
 
     for tracker in accelerator.trackers:
         if tracker.name == "wandb":
@@ -372,7 +397,7 @@ def tuple_type(s):
 
 def load_model_checkpoint(model, ckpt):
     def load_checkpoint(model, ckpt, full_strict):
-        state_dict = torch.load(ckpt, map_location="cpu")
+        state_dict = torch.load(ckpt, map_location="cpu", weights_only=True)
         if "state_dict" in list(state_dict.keys()):
             state_dict = state_dict["state_dict"]
         model.load_state_dict(state_dict, strict=full_strict)
@@ -383,3 +408,70 @@ def load_model_checkpoint(model, ckpt):
     load_checkpoint(model, ckpt, full_strict=True)
     print(">>> model checkpoint loaded.")
     return model
+
+
+def read_video_to_tensor(
+    path_to_video, sample_fps, sample_frames, uniform_sampling=False
+):
+    video_reader = VideoReader(path_to_video)
+    video_fps = video_reader.get_avg_fps()
+    video_frames = video_reader._num_frame
+    video_duration = video_frames / video_fps
+    sample_duration = sample_frames / sample_fps
+    stride = video_fps / sample_fps
+
+    if uniform_sampling or video_duration <= sample_duration:
+        index_range = np.linspace(0, video_frames - 1, sample_frames).astype(np.int32)
+    else:
+        max_start_frame = video_frames - np.ceil(sample_frames * stride).astype(
+            np.int32
+        )
+        if max_start_frame > 0:
+            start_frame = random.randint(0, max_start_frame)
+        else:
+            start_frame = 0
+
+        index_range = start_frame + np.arange(sample_frames) * stride
+        index_range = np.round(index_range).astype(np.int32)
+
+    sampled_frames = video_reader.get_batch(index_range).asnumpy()
+    pixel_values = torch.from_numpy(sampled_frames).permute(0, 3, 1, 2).contiguous()
+    pixel_values = pixel_values / 255.0
+    del video_reader
+
+    return pixel_values
+
+
+def calculate_motion_rank_new(tensor_ref, tensor_gen, rank_k=1):
+    if rank_k == 0:
+        loss = torch.tensor(0.0, device=tensor_ref.device)
+    elif rank_k > tensor_ref.shape[-1]:
+        raise ValueError(
+            "The value of rank_k cannot be larger than the number of frames"
+        )
+    else:
+        # Sort the reference tensor along the frames dimension
+        _, sorted_indices = torch.sort(tensor_ref, dim=-1)
+        # Create a mask to select the top rank_k frames
+        mask = torch.zeros_like(tensor_ref, dtype=torch.bool)
+        mask.scatter_(-1, sorted_indices[..., -rank_k:], True)
+        # Compute the mean squared error loss only on the masked elements
+        loss = F.mse_loss(tensor_ref[mask].detach(), tensor_gen[mask])
+    return loss
+
+
+def compute_temp_loss(attention_prob, attention_prob_example):
+    temp_attn_prob_loss = []
+    # 1. Loop though all layers to get the query, key, and Compute the PCA loss
+    for name in attention_prob.keys():
+        attn_prob_example = attention_prob_example[name]
+        attn_prob = attention_prob[name]
+
+        module_attn_loss = calculate_motion_rank_new(
+            attn_prob_example.detach(), attn_prob, rank_k=1
+        )
+        temp_attn_prob_loss.append(module_attn_loss)
+
+    loss_temp = torch.stack(temp_attn_prob_loss) * 100
+    loss = loss_temp.mean()
+    return loss

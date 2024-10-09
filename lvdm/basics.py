@@ -77,7 +77,7 @@ def nonlinearity(type="silu"):
 
 class GroupNormSpecific(nn.GroupNorm):
     def forward(self, x):
-        return super().forward(x.float()).type(x.dtype)
+        return super().forward(x).type(x.dtype)
 
 
 def normalization(channels, num_groups=32):

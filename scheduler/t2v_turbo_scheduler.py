@@ -25,6 +25,7 @@ import torch
 from diffusers import ConfigMixin, SchedulerMixin
 from diffusers.configuration_utils import register_to_config
 from diffusers.utils import BaseOutput
+from diffusers.utils.torch_utils import randn_tensor
 
 
 def extract_into_tensor(a, t, x_shape):
@@ -448,7 +449,12 @@ class T2VTurboScheduler(SchedulerMixin, ConfigMixin):
         # 5. Sample z ~ N(0, I), For MultiStep Inference
         # Noise is not used for one-step sampling.
         if len(self.timesteps) > 1:
-            noise = torch.randn(model_output.shape).to(model_output.device)
+            noise = randn_tensor(
+                denoised.shape,
+                generator=generator,
+                device=denoised.device,
+                dtype=denoised.dtype,
+            )
             prev_sample = (
                 alpha_prod_t_prev.sqrt() * denoised + beta_prod_t_prev.sqrt() * noise
             )

@@ -17,9 +17,10 @@ class DDIMSolver:
         use_scale=False,
     ):
         # DDIM sampling parameters
-        step_ratio = timesteps // ddim_timesteps
+        self.alpha_cumprods = torch.from_numpy(alpha_cumprods)
+        self.step_ratio = timesteps // ddim_timesteps
         self.ddim_timesteps = (
-            np.arange(1, ddim_timesteps + 1) * step_ratio
+            np.arange(1, ddim_timesteps + 1) * self.step_ratio
         ).round().astype(np.int64) - 1
         self.ddim_alpha_cumprods = alpha_cumprods[self.ddim_timesteps]
         self.ddim_alpha_cumprods_prev = np.asarray(
@@ -50,16 +51,17 @@ class DDIMSolver:
                 * (1 - self.ddim_alpha_cumprods / self.ddim_alpha_cumprods_prev)
             )
 
-    def to(self, device):
+    def to(self, device, dtype=None):
+        self.alpha_cumprods = self.alpha_cumprods.to(device, dtype)
         self.ddim_timesteps = self.ddim_timesteps.to(device)
-        self.ddim_alpha_cumprods = self.ddim_alpha_cumprods.to(device)
-        self.ddim_alpha_cumprods_prev = self.ddim_alpha_cumprods_prev.to(device)
+        self.ddim_alpha_cumprods = self.ddim_alpha_cumprods.to(device, dtype)
+        self.ddim_alpha_cumprods_prev = self.ddim_alpha_cumprods_prev.to(device, dtype)
 
         ## From VideoCrafter 2
         if self.use_scale:
-            self.ddim_scale_arr = self.ddim_scale_arr.to(device)
-            self.ddim_scale_arr_prev = self.ddim_scale_arr_prev.to(device)
-            self.ddim_sigmas = self.ddim_sigmas.to(device)
+            self.ddim_scale_arr = self.ddim_scale_arr.to(device, dtype)
+            self.ddim_scale_arr_prev = self.ddim_scale_arr_prev.to(device, dtype)
+            self.ddim_sigmas = self.ddim_sigmas.to(device, dtype)
         return self
 
     def ddim_step(self, pred_x0, pred_noise, timestep_index):
@@ -84,3 +86,12 @@ class DDIMSolver:
             x_prev = alpha_cumprod_prev.sqrt() * pred_x0 + dir_xt
         return x_prev
 
+    def ddim_reverse_step(self, x_prev, pred_noise, ts):
+        assert not self.use_scale
+        prev_ts = (ts - self.step_ratio).clip(min=0)
+        alpha_cumprod_next = extract_into_tensor(self.alpha_cumprods, ts, x_prev.shape)
+        alpha_cumprod = extract_into_tensor(self.alpha_cumprods, prev_ts, x_prev.shape)
+        x_t = (x_prev - (1 - alpha_cumprod).sqrt() * pred_noise) * (
+            alpha_cumprod_next / alpha_cumprod
+        ).sqrt() + (1 - alpha_cumprod_next).sqrt() * pred_noise
+        return x_t

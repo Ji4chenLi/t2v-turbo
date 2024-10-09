@@ -1,0 +1,12 @@
+accelerate launch train_t2v_turbo_v1_lora.py \
+    --output_dir=output/t2v-turbo-v1 \
+    --use_8bit_adam \
+    --train_batch_size=1 \
+    --n_frames 16 \
+    --no_scale_pred_x0 \
+    --reward_scale 1.0 \
+    --video_rm_name vi_clip2 \
+    --video_reward_scale 2.0 \
+    --pretrained_model_path model_cache/VideoCrafter2_model.ckpt \
+    --video_rm_ckpt_dir model_cache/InternVideo2-stage2_1b-224p-f4.pt \
+    --train_shards_path_or_url /path/to/webvid_data/train_data/{00000..99999}.tar

@@ -369,6 +369,8 @@ class UNetModel(nn.Module):
         temporal_transformer_depth=1,
         fps_cond=False,
         time_cond_proj_dim=None,
+        motion_cond_proj_dim=None,
+        record_attn_probs=False,
     ):
         super(UNetModel, self).__init__()
         if num_heads == -1:
@@ -396,6 +398,7 @@ class UNetModel(nn.Module):
         self.use_image_attention = use_image_attention
         self.fps_cond = fps_cond
         self.time_cond_proj_dim = time_cond_proj_dim
+        self.motion_cond_proj_dim = motion_cond_proj_dim
 
         self.time_embed = nn.Sequential(
             linear(model_channels, time_embed_dim),
@@ -414,6 +417,17 @@ class UNetModel(nn.Module):
             )
         else:
             self.time_cond_proj = None
+        
+        if motion_cond_proj_dim is not None:
+            self.motion_cond_proj = nn.Linear(
+                motion_cond_proj_dim, model_channels, bias=False
+            )
+            self.combine_proj = nn.Linear(
+                model_channels * 2, model_channels, bias=False
+            )
+        else:
+            self.motion_cond_proj = None
+            self.combine_proj = None
 
         self.input_blocks = nn.ModuleList(
             [
@@ -627,6 +641,7 @@ class UNetModel(nn.Module):
                                 causal_attention=use_causal_attention,
                                 relative_position=use_relative_position,
                                 temporal_length=temporal_length,
+                                record_attn_probs=record_attn_probs,
                             )
                         )
                 if level and i == num_res_blocks:
@@ -662,17 +677,32 @@ class UNetModel(nn.Module):
         features_adapter=None,
         fps=16,
         timestep_cond=None,
+        motion_cond=None,
         **kwargs
     ):
-        t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False)
+        t_emb = timestep_embedding(
+            timesteps, self.model_channels, repeat_only=False
+        ).to(self.dtype)
         if timestep_cond is not None:
-            t_emb = t_emb + self.time_cond_proj(timestep_cond)
-        emb = self.time_embed(t_emb)
+            timestep_cond_embed = self.time_cond_proj(timestep_cond)
+        else:
+            timestep_cond_embed = 0.
+        if motion_cond is not None:
+            assert timestep_cond is not None
+            motion_cond_emb = self.motion_cond_proj(motion_cond)
+            combined_cond_emb = self.combine_proj(
+                torch.cat([timestep_cond_embed, motion_cond_emb], dim=1)
+            )
+        else:
+            combined_cond_emb = timestep_cond_embed
+        emb = self.time_embed(t_emb + combined_cond_emb)
 
         if self.fps_cond:
             if type(fps) == int:
                 fps = torch.full_like(timesteps, fps)
-            fps_emb = timestep_embedding(fps, self.model_channels, repeat_only=False)
+            fps_emb = timestep_embedding(
+                fps, self.model_channels, repeat_only=False
+            ).to(self.dtype)
             emb += self.fps_embedding(fps_emb)
 
         b, _, t, _, _ = x.shape

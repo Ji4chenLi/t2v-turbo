@@ -50,7 +50,7 @@ model = dict(
         clip_norm_type='l2',
         clip_return_layer=6,
         clip_student_return_interval=1,
-        pretrained='your_model_path/1B_stage2_pt.pth',
+        pretrained='PATH/TO/model_cache/InternVideo2-stage2_1b-224p-f4.pt',
         use_checkpoint=True,
         checkpoint_num=40,
         use_flash_attn=use_half_precision,
@@ -105,7 +105,7 @@ seed = 42
 save_latest = False
 auto_resume = True
 jump_evaluate = False
-pretrained_path = "PATH/InternVideo2-stage2_1b-224p-f4.pt"
+pretrained_path = "/PATH/TO/model_cache/InternVideo2-stage2_1b-224p-f4.pt"
 # pretrained_path = ""
 
 deepspeed = dict(

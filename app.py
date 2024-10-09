@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+from functools import partial
 import os
 import random
 import time
@@ -29,7 +30,9 @@ from concurrent.futures import ThreadPoolExecutor
 import uuid
 
 DESCRIPTION = """# T2V-Turbo 🚀
-We provide T2V-Turbo (VC2) distilled from [VideoCrafter2](https://ailab-cvc.github.io/videocrafter2/) with the reward feedback from [HPSv2.1](https://github.com/tgxs002/HPSv2/tree/master) and [InternVid2 Stage 2 Model](https://huggingface.co/OpenGVLab/InternVideo2-Stage2_1B-224p-f4).
+Our first version of T2V-Turbo is distilled from [VideoCrafter2](https://ailab-cvc.github.io/videocrafter2/) with the reward feedback from [HPSv2.1](https://github.com/tgxs002/HPSv2/tree/master) and [InternVid2 Stage 2 Model](https://huggingface.co/OpenGVLab/InternVideo2-Stage2_1B-224p-f4).
+
+Our Newest version, T2V-Turbo-v2, is trained on datasets that mix VidGen-1M and WebVid-10M datasets, and it distills a motion prior from the training videos. 
 
 You can download the the models from [here](https://huggingface.co/jiachenli-ucsb/T2V-Turbo-VC2). Check out our [Project page](https://t2v-turbo.github.io) 😄
 """
@@ -61,9 +64,7 @@ device = "cuda"  # Linux & Windows
       To reduce GPU memory you can set "DTYPE=torch.float16",
       but image quality might be compromised
 """
-DTYPE = (
-    torch.float16
-)  # torch.float16 works as well, but pictures seem to be a bit worse
+DTYPE = torch.bfloat16
 
 
 def randomize_seed_fn(seed: int, randomize_seed: bool) -> int:
@@ -114,20 +115,37 @@ def generate(
     prompt: str,
     seed: int = 0,
     guidance_scale: float = 7.5,
+    percentage: float = 0.3,
     num_inference_steps: int = 4,
     num_frames: int = 16,
     fps: int = 16,
     randomize_seed: bool = False,
-    param_dtype="torch.float16",
+    param_dtype="bf16",
+    motion_gs: float = 0.05,
+    use_motion_cond: bool = False,
     progress=gr.Progress(track_tqdm=True),
     profile: gr.OAuthProfile | None = None,
 ):
     seed = randomize_seed_fn(seed, randomize_seed)
     torch.manual_seed(seed)
-    pipeline.to(
-        torch_device=device,
-        torch_dtype=torch.float16 if param_dtype == "torch.float16" else torch.float32,
-    )
+
+    if param_dtype == "bf16":
+        dtype = torch.bfloat16
+        unet.dtype = torch.bfloat16
+    elif param_dtype == "fp16":
+        dtype = torch.float16
+        unet.dtype = torch.float16
+    elif param_dtype == "fp32":
+        dtype = torch.float32
+        unet.dtype = torch.float32
+    else:
+        raise ValueError(f"Unknown dtype: {param_dtype}")
+
+    pipeline.unet.to(device, dtype)
+    pipeline.text_encoder.to(device, dtype)
+    pipeline.vae.to(device, dtype)
+    pipeline.to(device, dtype)
+
     start_time = time.time()
 
     result = pipeline(
@@ -135,7 +153,11 @@ def generate(
         frames=num_frames,
         fps=fps,
         guidance_scale=guidance_scale,
+        motion_gs=motion_gs,
+        use_motion_cond=use_motion_cond,
+        percentage=percentage,
         num_inference_steps=num_inference_steps,
+        lcm_origin_steps=200,
         num_videos_per_prompt=1,
     )
     paths = save_videos(
@@ -173,12 +195,26 @@ if __name__ == "__main__":
     parser.add_argument(
         "--unet_dir",
         type=str,
+        default="output/vlcm_vc2_mixed_vid_gen_128k_bs3_percen_0p2_mgs_max_0p1/checkpoint-10000/unet.pt",
         help="Directory of the UNet model",
     )
     parser.add_argument(
         "--base_model_dir",
         type=str,
+        default="model_cache/VideoCrafter2_model.ckpt",
         help="Directory of the VideoCrafter2 checkpoint.",
+    )
+    parser.add_argument(
+        "--version",
+        required=True,
+        choices=["v1", "v2"],
+        help="Whether to use motion condition or not.",
+    )
+    parser.add_argument(
+        "--motion_gs",
+        default=0.05,
+        type=float,
+        help="Guidance scale for motion condition.",
     )
 
     args = parser.parse_args()
@@ -189,32 +225,39 @@ if __name__ == "__main__":
     pretrained_t2v = load_model_checkpoint(pretrained_t2v, args.base_model_dir)
 
     unet_config = model_config["params"]["unet_config"]
+    unet_config["params"]["use_checkpoint"] = False
     unet_config["params"]["time_cond_proj_dim"] = 256
+
+    if args.version == "v2":
+        unet_config["params"]["motion_cond_proj_dim"] = 256
     unet = instantiate_from_config(unet_config)
 
-    unet.load_state_dict(
-        pretrained_t2v.model.diffusion_model.state_dict(), strict=False
-    )
+    if "lora" in args.unet_dir:
+        unet.load_state_dict(
+            pretrained_t2v.model.diffusion_model.state_dict(), strict=False
+        )
 
-    use_unet_lora = True
-    lora_manager = LoraHandler(
-        version="cloneofsimo",
-        use_unet_lora=use_unet_lora,
-        save_for_webui=True,
-        unet_replace_modules=["UNetModel"],
-    )
-    lora_manager.add_lora_to_model(
-        use_unet_lora,
-        unet,
-        lora_manager.unet_replace_modules,
-        lora_path=args.unet_dir,
-        dropout=0.1,
-        r=64,
-    )
+        use_unet_lora = True
+        lora_manager = LoraHandler(
+            version="cloneofsimo",
+            use_unet_lora=use_unet_lora,
+            save_for_webui=True,
+            unet_replace_modules=["UNetModel"],
+        )
+        lora_manager.add_lora_to_model(
+            use_unet_lora,
+            unet,
+            lora_manager.unet_replace_modules,
+            lora_path=args.unet_dir,
+            dropout=0.1,
+            r=64,
+        )
+        collapse_lora(unet, lora_manager.unet_replace_modules)
+        monkeypatch_remove_lora(unet)
+    else:
+        unet.load_state_dict(torch.load(args.unet_dir, map_location=device))
+
     unet.eval()
-    collapse_lora(unet, lora_manager.unet_replace_modules)
-    monkeypatch_remove_lora(unet)
-
     pretrained_t2v.model.diffusion_model = unet
     scheduler = T2VTurboScheduler(
         linear_start=model_config["params"]["linear_start"],
@@ -254,14 +297,22 @@ if __name__ == "__main__":
                 randomize=True,
             )
             randomize_seed = gr.Checkbox(label="Randomize seed across runs", value=True)
-            dtype_choices = ["torch.float16", "torch.float32"]
+            dtype_choices = ["bf16", "fp16", "fp32"]
             param_dtype = gr.Radio(
                 dtype_choices,
                 label="torch.dtype",
                 value=dtype_choices[0],
                 interactive=True,
-                info="To save GPU memory, use torch.float16. For better quality, use torch.float32.",
+                info="To save GPU memory, use fp16 or bf16. For better quality, use fp32.",
             )
+            with gr.Row():
+                percentage = gr.Slider(
+                    label="Percentage of steps to apply motion guidance (v2 w/ MG only)",
+                    minimum=0.0,
+                    maximum=0.5,
+                    step=0.05,
+                    value=0.3,
+                )
 
             with gr.Row():
                 guidance_scale = gr.Slider(
@@ -273,10 +324,10 @@ if __name__ == "__main__":
                 )
                 num_inference_steps = gr.Slider(
                     label="Number of inference steps for base",
-                    minimum=1,
-                    maximum=8,
+                    minimum=4,
+                    maximum=50,
                     step=1,
-                    value=4,
+                    value=8,
                 )
             with gr.Row():
                 num_frames = gr.Slider(
@@ -291,9 +342,13 @@ if __name__ == "__main__":
                     minimum=8,
                     maximum=32,
                     step=4,
-                    value=16,
+                    value=8,
                 )
 
+        use_motion_cond = args.version == "v1"
+        generate = partial(
+            generate, use_motion_cond=use_motion_cond, motion_gs=args.motion_gs
+        )
         gr.Examples(
             examples=examples,
             inputs=prompt,
@@ -312,6 +367,7 @@ if __name__ == "__main__":
                 prompt,
                 seed,
                 guidance_scale,
+                percentage,
                 num_inference_steps,
                 num_frames,
                 fps,

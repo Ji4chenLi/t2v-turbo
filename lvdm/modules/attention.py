@@ -59,6 +59,7 @@ class CrossAttention(nn.Module):
         relative_position=False,
         temporal_length=None,
         img_cross_attention=False,
+        record_attn_probs=False,
     ):
         super().__init__()
         inner_dim = dim_head * heads
@@ -75,7 +76,7 @@ class CrossAttention(nn.Module):
         )
 
         self.image_cross_attention_scale = 1.0
-        self.text_context_len = 77
+        self.text_context_len = 200
         self.img_cross_attention = img_cross_attention
         if self.img_cross_attention:
             self.to_k_ip = nn.Linear(context_dim, inner_dim, bias=False)
@@ -94,6 +95,9 @@ class CrossAttention(nn.Module):
             ## only used for spatial attention, while NOT for temporal attention
             if XFORMERS_IS_AVAILBLE and temporal_length is None:
                 self.forward = self.efficient_forward
+
+        self.record_attn_probs = record_attn_probs
+        self.attention_probs = None
 
     def forward(self, x, context=None, mask=None):
         h = self.heads
@@ -115,6 +119,12 @@ class CrossAttention(nn.Module):
             v = self.to_v(context)
 
         q, k, v = map(lambda t: rearrange(t, "b n (h d) -> (b h) n d", h=h), (q, k, v))
+
+        # Record the attention probs
+        if self.record_attn_probs:
+            attention_score = torch.einsum("b i d, b j d -> b i j", q, k) * self.scale
+            self.attention_probs = attention_score.softmax(dim=-1)
+
         sim = torch.einsum("b i d, b j d -> b i j", q, k) * self.scale
         if self.relative_position:
             len_q, len_k, len_v = q.shape[1], k.shape[1], v.shape[1]
@@ -172,16 +182,30 @@ class CrossAttention(nn.Module):
             v = self.to_v(context)
 
         b, _, _ = q.shape
-        q, k, v = map(
-            lambda t: t.unsqueeze(3)
-            .reshape(b, t.shape[1], self.heads, self.dim_head)
-            .permute(0, 2, 1, 3)
-            .reshape(b * self.heads, t.shape[1], self.dim_head)
-            .contiguous(),
-            (q, k, v),
-        )
+        # Record the attention probs
+        if self.record_attn_probs:
+            q, k, v = map(
+                lambda t: t.unsqueeze(3)
+                .reshape(b, t.shape[1], self.heads, self.dim_head)
+                .permute(0, 2, 1, 3)
+                .reshape(b * self.heads, t.shape[1], self.dim_head)
+                .contiguous(),
+                (q, k, v),
+            )
+            attention_score = torch.einsum("b i d, b j d -> b i j", q, k) * self.scale
+            self.attention_probs = attention_score.softmax(dim=-1)
+        else:
+            q, k, v = map(
+                lambda t: t.unsqueeze(3)
+                .reshape(b, t.shape[1], self.heads, self.dim_head)
+                .contiguous(),
+                (q, k, v),
+            )
+
         # actually compute the attention, what we cannot get enough of
         out = xformers.ops.memory_efficient_attention(q, k, v, attn_bias=None, op=None)
+        if not self.record_attn_probs:
+            out = out.permute(0, 2, 1, 3).reshape(b * self.heads, out.shape[1], self.dim_head)
 
         ## considering image token additionally
         if context is not None and self.img_cross_attention:
@@ -230,6 +254,7 @@ class BasicTransformerBlock(nn.Module):
         disable_self_attn=False,
         attention_cls=None,
         img_cross_attention=False,
+        record_attn_probs=False,
     ):
         super().__init__()
         attn_cls = CrossAttention if attention_cls is None else attention_cls
@@ -240,6 +265,7 @@ class BasicTransformerBlock(nn.Module):
             dim_head=d_head,
             dropout=dropout,
             context_dim=context_dim if self.disable_self_attn else None,
+            record_attn_probs=record_attn_probs,
         )
         self.ff = FeedForward(dim, dropout=dropout, glu=gated_ff)
         self.attn2 = attn_cls(
@@ -385,6 +411,7 @@ class TemporalTransformer(nn.Module):
         causal_attention=False,
         relative_position=False,
         temporal_length=None,
+        record_attn_probs=False,
     ):
         super().__init__()
         self.only_self_att = only_self_att
@@ -428,6 +455,7 @@ class TemporalTransformer(nn.Module):
                     context_dim=context_dim,
                     attention_cls=attention_cls,
                     checkpoint=use_checkpoint,
+                    record_attn_probs=record_attn_probs,
                 )
                 for d in range(depth)
             ]

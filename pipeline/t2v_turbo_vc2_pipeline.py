@@ -128,6 +128,9 @@ class T2VTurboVC2Pipeline(DiffusionPipeline):
         frames: int = 16,
         fps: int = 16,
         guidance_scale: float = 7.5,
+        motion_gs: float = 0.1,
+        use_motion_cond: bool = False,
+        percentage: float = 0.3,
         num_videos_per_prompt: Optional[int] = 1,
         generator: Optional[Union[torch.Generator, List[torch.Generator]]] = None,
         latents: Optional[torch.FloatTensor] = None,
@@ -149,7 +152,6 @@ class T2VTurboVC2Pipeline(DiffusionPipeline):
             batch_size = prompt_embeds.shape[0]
 
         device = self._execution_device
-        # do_classifier_free_guidance = guidance_scale > 0.0  # In LCM Implementation:  cfg_noise = noise_cond + cfg_scale * (noise_cond - noise_uncond) , (cfg_scale > 0.0 using CFG)
 
         # 3. Encode input prompt
         prompt_embeds = self._encode_prompt(
@@ -179,31 +181,35 @@ class T2VTurboVC2Pipeline(DiffusionPipeline):
 
         bs = batch_size * num_videos_per_prompt
 
+        context = {"context": torch.cat([prompt_embeds.to(self.dtype)], 1), "fps": fps}
         # 6. Get Guidance Scale Embedding
         w = torch.tensor(guidance_scale).repeat(bs)
         w_embedding = self.get_w_embedding(w, embedding_dim=256).to(device)
+        context["timestep_cond"] = w_embedding.to(self.dtype)
 
+        ms_t_threshold = self.scheduler.config.num_train_timesteps * (1 - percentage)
         # 7. LCM MultiStep Sampling Loop:
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
 
                 ts = torch.full((bs,), t, device=device, dtype=torch.long)
 
+                if use_motion_cond:
+                    motion_gs_pt = torch.tensor(motion_gs).repeat(bs)
+                    if t < ms_t_threshold:
+                        motion_gs_pt = torch.zeros_like(motion_gs_pt)
+                    motion_gs_embedding = self.get_w_embedding(
+                        motion_gs_pt, embedding_dim=256, dtype=self.dtype
+                    ).to(device)
+                    context["motion_cond"] = motion_gs_embedding
+
                 # model prediction (v-prediction, eps, x)
-                context = {"context": torch.cat([prompt_embeds.float()], 1), "fps": fps}
-                model_pred = self.unet(
-                    latents,
-                    ts,
-                    **context,
-                    timestep_cond=w_embedding.to(self.dtype),
-                )
+                model_pred = self.unet(latents, ts, **context)
                 # compute the previous noisy sample x_t -> x_t-1
                 latents, denoised = self.scheduler.step(
-                    model_pred, i, t, latents, return_dict=False
+                    model_pred, i, t, latents, generator=generator, return_dict=False
                 )
 
-                # # call the callback, if provided
-                # if i == len(timesteps) - 1:
                 progress_bar.update()
 
         if not output_type == "latent":

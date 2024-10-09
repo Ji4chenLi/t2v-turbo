@@ -1,0 +1,22 @@
+accelerate launch train_latent_t2v_turbo_v2.py \
+    --output_dir=output/t2v-turbo-v2 \
+    --train_shards_path_or_url /path/to/mixed_motion_latent_128k_webvid.csv \
+    --mixed_precision bf16 \
+    --allow_tf32 \
+    --n_frames 16 \
+    --no_scale_pred_x0 \
+    --reward_scale 0.2 \
+    --video_reward_scale 0.5 \
+    --fps 8 \
+    --use_8bit_adam \
+    --train_batch_size 3 \
+    --percentage 0.5 \
+    --motion_gs \
+    --use_motion_cond \
+    --reward_train_bsz 1 \
+    --reward_frame_bsz 2 \
+    --video_rm_frame_bsz 4 \
+    --reward_fn_name weighted_hpsv2_clip \
+    --video_rm_name vi_clip2 \
+    --pretrained_model_path model_cache/VideoCrafter2_model.ckpt \
+    --video_rm_ckpt_dir model_cache/InternVideo2-stage2_1b-224p-f4.pt

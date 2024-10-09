@@ -5,7 +5,13 @@ import torch
 import torch.nn as nn
 from transformers import AutoModel, AutoProcessor
 import torchvision.transforms.functional as F
-from torchvision.transforms import Normalize, Resize, InterpolationMode, CenterCrop, RandomCrop
+from torchvision.transforms import (
+    Normalize,
+    Resize,
+    InterpolationMode,
+    CenterCrop,
+    RandomCrop,
+)
 
 # Image processing
 CLIP_RESIZE = Resize((224, 224), interpolation=InterpolationMode.BICUBIC)
@@ -108,6 +114,8 @@ def get_hpsv2_fn(precision="amp"):
 
         with torch.no_grad():
             text_features = model.encode_text(text_inputs, normalize=True)
+            repeat_times = image_features.shape[0] // text_features.shape[0]
+            text_features = text_features.repeat(repeat_times, 1)
 
         hps_score = (image_features * text_features).sum(-1)
         if return_logits:
@@ -270,6 +278,64 @@ def get_intern_vid2_score_fn(rm_ckpt_dir: str, precision="amp", n_frames=8):
 
     return score_fn
 
+def get_clip_score_fn(precision="amp"):
+    assert precision in ["bf16", "fp16", "amp", "fp32"]
+    import open_clip
+    model, _, _ = open_clip.create_model_and_transforms(
+        "ViT-H-14",
+        "laion2B-s32B-b79K",
+        precision=precision,
+        device="cuda",
+        jit=False,
+        force_quick_gelu=False,
+        force_custom_text=False,
+        force_patch_dropout=None,
+        force_image_size=None,
+        image_mean=None,
+        image_std=None,
+        image_interpolation=None,
+        image_resize_mode=None,  # only effective for inference
+        aug_cfg={},
+        pretrained_image=False,
+        output_dict=True,
+    )
+    tokenizer = open_clip.get_tokenizer("ViT-H-14")
+    model.eval()
+    model.requires_grad_(False)
+
+    # gets vae decode as input
+    def score_fn(image_inputs: torch.Tensor, text_inputs: List[str], return_logits=False):
+        # Process pixels and multicrop
+        model.to(image_inputs.device)
+        image_inputs = CLIP_RESIZE(image_inputs)
+        image_inputs = CLIP_NORMALIZE(image_inputs)
+
+        if isinstance(text_inputs[0], str):
+            text_inputs = tokenizer(text_inputs).to(image_inputs.device)
+
+        # embed
+        image_features = model.encode_image(image_inputs, normalize=True)
+        with torch.no_grad():
+            text_features = model.encode_text(text_inputs, normalize=True)
+
+        clip_score = (image_features * text_features).sum(-1)
+        if return_logits:
+            clip_score = clip_score * model.logit_scale.exp()
+        return clip_score
+
+    return score_fn
+
+
+def get_weighted_hpsv2_clip_fn(precision="amp", weights=[1.0, 5.0]):
+    hpsv2_score_fn = get_hpsv2_fn(precision)
+    clip_score_fn = get_clip_score_fn(precision)
+
+    def score_fn(image_inputs: torch.Tensor, text_inputs: str):
+        hpsv2_score = hpsv2_score_fn(image_inputs, text_inputs)
+        img_reward_score = clip_score_fn(image_inputs, text_inputs)
+        return weights[0] * hpsv2_score + weights[1] * img_reward_score
+    return score_fn
+
 
 def get_reward_fn(reward_fn_name: str, **kwargs):
     if reward_fn_name == "pick":
@@ -282,5 +348,9 @@ def get_reward_fn(reward_fn_name: str, **kwargs):
         return get_vi_clip_score_fn(**kwargs)
     elif reward_fn_name == "vi_clip2":
         return get_intern_vid2_score_fn(**kwargs)
+    elif reward_fn_name == "clip":
+        return get_clip_score_fn(**kwargs)
+    elif reward_fn_name == "weighted_hpsv2_clip":
+        return get_weighted_hpsv2_clip_fn(**kwargs)
     else:
         raise ValueError("Invalid reward_fn_name")
