@@ -16,7 +16,8 @@ Project Page: https://t2v-turbo-v2.github.io/
 ![T2V-Turbo-v2](assets/teasers/v2-pipeline.jpg)
 
 ## 🔔 News
-[10.08.2024] Release the training and inference codes for T2V-Turbo-v2.
+[10.09.2024] Release the training and inference codes for T2V-Turbo-v2.
+
 [06.24.2024] Release the training codes for T2V-Turbo (VC2).
 
 ## Fast and High-Quality Text-to-video Generation 🚀
