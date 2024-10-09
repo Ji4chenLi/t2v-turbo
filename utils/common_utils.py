@@ -343,32 +343,32 @@ def log_validation_video(pipeline, args, accelerator, save_fps):
     motion_gs = getattr(args, "motion_gs", 0.)
     for _, prompt in enumerate(validation_prompts):
         with torch.autocast("cuda"):
-        for i in range(2):
-            videos = pipeline(
-                prompt=prompt,
-                frames=args.n_frames,
-                num_inference_steps=8 * (i + 1),
-                num_videos_per_prompt=1,
-                fps=args.fps,
-                use_motion_cond=use_motion_cond,
-                motion_gs=motion_gs,
-                lcm_origin_steps=args.num_ddim_timesteps,
-                generator=generator,
+            for i in range(2):
+                videos = pipeline(
+                    prompt=prompt,
+                    frames=args.n_frames,
+                    num_inference_steps=8 * (i + 1),
+                    num_videos_per_prompt=1,
+                    fps=args.fps,
+                    use_motion_cond=use_motion_cond,
+                    motion_gs=motion_gs,
+                    lcm_origin_steps=args.num_ddim_timesteps,
+                    generator=generator,
+                )
+                videos = (videos.clamp(-1.0, 1.0) + 1.0) / 2.0
+                videos = (
+                    (videos * 255)
+                    .to(torch.uint8)
+                    .permute(0, 2, 1, 3, 4)
+                    .cpu()
+                    .numpy()
+                )
+            video_logs.append(
+                {
+                    "validation_prompt": f"Steps={4 * (i + 1)}, {prompt}",
+                    "videos": videos,
+                }
             )
-            videos = (videos.clamp(-1.0, 1.0) + 1.0) / 2.0
-            videos = (
-                (videos * 255)
-                .to(torch.uint8)
-                .permute(0, 2, 1, 3, 4)
-                .cpu()
-                .numpy()
-            )
-        video_logs.append(
-            {
-                "validation_prompt": f"Steps={4 * (i + 1)}, {prompt}",
-                "videos": videos,
-            }
-        )
 
     for tracker in accelerator.trackers:
         if tracker.name == "wandb":
