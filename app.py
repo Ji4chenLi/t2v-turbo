@@ -32,15 +32,18 @@ import uuid
 DESCRIPTION = """# T2V-Turbo 🚀
 
 Our model is distilled from [VideoCrafter2](https://ailab-cvc.github.io/videocrafter2/).
+
 T2V-Turbo learns a LoRA on top of the base model by aligning to the reward feedback from [HPSv2.1](https://github.com/tgxs002/HPSv2/tree/master) and [InternVid2 Stage 2 Model](https://huggingface.co/OpenGVLab/InternVideo2-Stage2_1B-224p-f4).
+
 T2V-Turbo-v2 optimizes the training techniques by finetuning the full base model and further aligns to [CLIPScore](https://huggingface.co/laion/CLIP-ViT-H-14-laion2B-s32B-b79K)
 
 T2V-Turbo trains on pure WebVid-10M data, whereas T2V-Turbo-v2 carufully optimizes different learning objectives with a mixutre of VidGen-1M and WebVid-10M data.
 
 Moreover, T2V-Turbo-v2 supports to distill motion priors from the training videos. 
 
-[Project page for T2V-Turbo](https://t2v-turbo.github.io) 😄
-[Project page for T2V-Turbo-v2](https://t2v-turbo-v2.github.io) 🛫
+[Project page for T2V-Turbo](https://t2v-turbo.github.io) 🥳
+
+[Project page for T2V-Turbo-v2](https://t2v-turbo-v2.github.io) 🤓
 """
 if torch.cuda.is_available():
     DESCRIPTION += "\n<p>Running on CUDA 😀</p>"

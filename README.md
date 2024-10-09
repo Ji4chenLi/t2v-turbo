@@ -46,8 +46,8 @@ Project Page: https://t2v-turbo-v2.github.io/
 
   <tr>
   <td style="text-align:center;" width="320">camera pan from left to right, a man wearing sunglasses and business suit</td>
-  <td style="text-align:center;" width="320">Pikachu snowboarding</td>
-  <td style="text-align:center;" width="320">a girl floating underwater </td>
+  <td style="text-align:center;" width="320">A cat wearing sunglasses at a pool</td>
+  <td style="text-align:center;" width="320">A raccoon is playing the electronic guitar</td>
   <tr>
 </table >
 
