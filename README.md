@@ -3,6 +3,7 @@ This repository provides the official implementation of <span style="font-family
 
 **T2V-Turbo: Breaking the Quality Bottleneck of Video Consistency Model with Mixed Reward Feedback**  
 Jiachen Li, Weixi Feng, Tsu-Jui Fu, Xinyi Wang, Sugato Basu, Wenhu Chen, William Yang Wang
+
 Paper: https://arxiv.org/abs/2405.18750
 
 Project Page: https://t2v-turbo.github.io/
@@ -11,6 +12,7 @@ Project Page: https://t2v-turbo.github.io/
 
 **T2V-Turbo-v2: Enhancing Video Model Post-Training through Data, Reward, and Conditional Guidance Design**  
 Jiachen Li, Qian Long, Jian Zheng, Xiaofeng Gao, Robinson Piramuthu, Wenhu Chen, William Yang Wang
+
 Paper: (Coming Soon)
 
 Project Page: https://t2v-turbo-v2.github.io/
