@@ -13,7 +13,7 @@ Project Page: https://t2v-turbo.github.io/
 **T2V-Turbo-v2: Enhancing Video Model Post-Training through Data, Reward, and Conditional Guidance Design**  
 Jiachen Li, Qian Long, Jian Zheng, Xiaofeng Gao, Robinson Piramuthu, Wenhu Chen, William Yang Wang
 
-Paper: (Coming Soon)
+Paper: https://arxiv.org/abs/2410.05677
 
 Project Page: https://t2v-turbo-v2.github.io/
 
