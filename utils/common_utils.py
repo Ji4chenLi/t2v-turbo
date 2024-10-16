@@ -6,6 +6,7 @@ import cv2
 import numpy as np
 import torch
 import torch.nn.functional as F
+from torchvision import transforms
 
 from diffusers.models.attention_processor import AttnProcessor2_0
 from diffusers.models.attention import BasicTransformerBlock
@@ -475,3 +476,16 @@ def compute_temp_loss(attention_prob, attention_prob_example):
     loss_temp = torch.stack(temp_attn_prob_loss) * 100
     loss = loss_temp.mean()
     return loss
+
+
+def get_transform(sample_size):
+    pixel_transforms = transforms.Compose(
+        [
+            transforms.Resize(sample_size),
+            transforms.CenterCrop(sample_size),
+            transforms.Normalize(
+                mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5], inplace=True
+            ),
+        ]
+    )
+    return pixel_transforms

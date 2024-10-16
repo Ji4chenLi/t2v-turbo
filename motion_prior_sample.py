@@ -5,13 +5,13 @@ import pickle
 from omegaconf import OmegaConf
 import torch
 import torchvision
-from torchvision import transforms
 from tqdm import tqdm
 from ode_solver.ddim_solver import DDIMSolver
 from scheduler.t2v_turbo_scheduler import T2VTurboScheduler
 from utils.utils import instantiate_from_config
 from utils.common_utils import (
     extract_into_tensor,
+    get_transform,
     get_predicted_noise,
     get_predicted_original_sample,
     load_model_checkpoint,
@@ -22,19 +22,6 @@ from reward_fn import get_reward_fn
 
 
 SAMPLE_SIZE = (320, 512)
-
-
-def get_transform(sample_size):
-    pixel_transforms = transforms.Compose(
-        [
-            transforms.Resize(sample_size),
-            transforms.CenterCrop(sample_size),
-            transforms.Normalize(
-                mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5], inplace=True
-            ),
-        ]
-    )
-    return pixel_transforms
 
 
 def reverse_ddim_loop(latents, unet, context, solver, num_inference_steps, device):

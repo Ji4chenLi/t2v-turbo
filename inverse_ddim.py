@@ -3,18 +3,19 @@ from omegaconf import OmegaConf
 import torch
 import torchvision
 
-import numpy as np
 from tqdm import tqdm
 from ode_solver.ddim_solver import DDIMSolver
 from scheduler.t2v_turbo_scheduler import T2VTurboScheduler
 from utils.utils import instantiate_from_config
 from utils.common_utils import (
+    get_transform,
     get_predicted_noise,
     get_predicted_original_sample,
     load_model_checkpoint,
     read_video_to_tensor,
 )
 
+SAMPLE_SIZE = (320, 512)
 
 @torch.no_grad()
 def main(unet, vae, text_encoder, scheduler, pretrained_t2v, solver, device, dtype):
@@ -25,6 +26,9 @@ def main(unet, vae, text_encoder, scheduler, pretrained_t2v, solver, device, dty
     video = read_video_to_tensor(
         "assets/reference_videos/sample_fox.mp4", sample_fps=8, sample_frames=16
     )
+    pixel_transforms = get_transform(sample_size=SAMPLE_SIZE)
+    video = pixel_transforms(video)
+
     latents = vae.encode(video.to(device, dtype)).sample()
     latents = latents.unsqueeze(0)
     latents = latents.permute(0, 2, 1, 3, 4)
