@@ -96,7 +96,7 @@ if __name__ == "__main__":
     # Add model name as parameter
     ddim_timesteps = 200
     device = torch.device("cuda")
-    dtype = torch.float16
+    dtype = torch.bfloat16
     config = OmegaConf.load("configs/inference_t2v_512_v2.0_motion_clone.yaml")
     model_config = config.pop("model", OmegaConf.create())
     pretrained_t2v = instantiate_from_config(model_config)
@@ -104,6 +104,7 @@ if __name__ == "__main__":
         pretrained_t2v, "model_cache/VideoCrafter2_model.ckpt"
     )
     unet = pretrained_t2v.model.diffusion_model.to(device, dtype)
+    unet.dtype = dtype
     vae = pretrained_t2v.first_stage_model.to(device, dtype)
     text_encoder = pretrained_t2v.cond_stage_model.to(device, dtype)
 
