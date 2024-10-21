@@ -40,7 +40,7 @@ import diffusers
 from diffusers.optimization import get_scheduler
 from diffusers.utils import check_min_version, is_wandb_available
 
-from data.openvid_data import MP4Dataset
+from data.mp4_dataset import MP4Dataset
 
 from lvdm.modules.attention import TemporalTransformer
 from ode_solver import DDIMSolver
