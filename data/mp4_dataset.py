@@ -159,7 +159,7 @@ if __name__ == "__main__":
     from torch.utils.data import DataLoader
 
     random_indx = list(range(10))
-    dataset = OpenVidLatentDataset("data/mixed_motion_latent_128k_webvid.csv")
+    dataset = MP4LatentDataset("data/mixed_motion_latent_128k_webvid.csv")
     data_loader = DataLoader(dataset, batch_size=4, shuffle=True)
 
     for i, sample in enumerate(data_loader):

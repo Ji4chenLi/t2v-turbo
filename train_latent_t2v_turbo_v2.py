@@ -40,7 +40,7 @@ import diffusers
 from diffusers.optimization import get_scheduler
 from diffusers.utils import check_min_version, is_wandb_available
 
-from data.mp4_dataset import MP4Dataset
+from data.mp4_dataset import MP4LatentDataset
 
 from lvdm.modules.attention import TemporalTransformer
 from ode_solver import DDIMSolver
@@ -844,7 +844,7 @@ def main(args):
         eps=args.adam_epsilon,
     )
 
-    dataset = MP4Dataset(
+    dataset = MP4LatentDataset(
         args.train_shards_path_or_url, latent_root=args.latent_root
     )
     train_dataloader = torch.utils.data.DataLoader(
