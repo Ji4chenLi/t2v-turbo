@@ -88,7 +88,7 @@ def log_validation(pretrained_t2v, unet, scheduler, model_config, args, accelera
     pipeline = T2VTurboVC2Pipeline(pretrained_t2v, scheduler, model_config)
     pipeline = pipeline.to(accelerator.device)
 
-    log_validation_video(pipeline, args, accelerator, save_fps=16)
+    log_validation_video(pipeline, args, accelerator, save_fps=args.fps)
     torch.cuda.empty_cache()
     gc.collect()
 
@@ -197,9 +197,15 @@ def parse_args():
         help="Batch size (per device) for the training dataloader.",
     )
     parser.add_argument(
-        "--reward_batch_size",
+        "--reward_frame_bsz",
         type=int,
         default=5,
+        help="Batch size (per device) for optimizing the text-image RM.",
+    )
+    parser.add_argument(
+        "--reward_train_bsz",
+        type=int,
+        default=1,
         help="Batch size (per device) for optimizing the text-image RM.",
     )
     parser.add_argument(
@@ -356,6 +362,12 @@ def parse_args():
         help=("Whether to scale the pred_x0 in DDIM step."),
     )
     parser.add_argument(
+        "--fps",
+        type=int,
+        default=16,
+        help="fps for the video.",
+    )
+    parser.add_argument(
         "--num_ddim_timesteps",
         type=int,
         default=50,
@@ -444,7 +456,7 @@ def parse_args():
     parser.add_argument(
         "--mixed_precision",
         type=str,
-        default="fp16",
+        default="bf16",
         choices=["no", "fp16", "bf16"],
         help=(
             "Whether to use mixed precision. Choose between fp16 and bf16 (bfloat16). Bf16 requires PyTorch >="
@@ -799,7 +811,7 @@ def main(args):
 
     decoder_kwargs = {
         "n_frames": args.n_frames,  # get 16 frames from each video
-        "fps": 16,
+        "fps": args.fps,
         "num_threads": 12,  # use 16 threads to decode the video
     }
     resolution = tuple([s * 8 for s in model_config["params"]["image_size"]])
@@ -1007,7 +1019,7 @@ def main(args):
                 prompt_embeds = encoded_text.pop("prompt_embeds")
 
                 # 7. Get online LCM prediction on z_{t_{n + k}} (noisy_model_input), w, c, t_{n + k} (start_timesteps)
-                context = {"context": torch.cat([prompt_embeds.float()], 1), "fps": 16}
+                context = {"context": torch.cat([prompt_embeds.float()], 1), "fps": args.fps}
                 noise_pred = unet(
                     noisy_model_input,
                     start_timesteps,
@@ -1032,21 +1044,24 @@ def main(args):
                     accelerator.process_index in args.reward_train_processes
                     and args.reward_scale > 0
                 ):
-                    # sample args.reward_batch_size frames
-                    assert args.train_batch_size == 1
-                    idx = torch.randint(0, t, (args.reward_batch_size,))
+                    # sample args.reward_frame_bsz frames
+                    idx = torch.randperm(args.n_frames)[: args.reward_frame_bsz]
+                    num_total_frames = args.reward_frame_bsz
+
+                    b_idx = torch.randperm(bsz)[: args.reward_train_bsz]
+                    selected_text = [text[idx] for idx in b_idx]
+                    num_total_frames *= args.reward_train_bsz
 
                     selected_latents = (
-                        model_pred[:, :, idx].to(vae.dtype) / vae_scale_factor
+                        model_pred[b_idx][:, :, idx] / vae_scale_factor
                     )
-                    num_images = args.train_batch_size * args.reward_batch_size
                     selected_latents = selected_latents.permute(0, 2, 1, 3, 4)
                     selected_latents = selected_latents.reshape(
-                        num_images, *selected_latents.shape[2:]
+                        num_total_frames, *selected_latents.shape[2:]
                     )
-                    decoded_imgs = vae.decode(selected_latents)
+                    decoded_imgs = vae.decode(selected_latents.to(vae.dtype))
                     decoded_imgs = (decoded_imgs / 2 + 0.5).clamp(0, 1)
-                    expert_rewards = reward_fn(decoded_imgs, text)
+                    expert_rewards = reward_fn(decoded_imgs, selected_text)
                     reward_loss = -expert_rewards.mean() * args.reward_scale
                 if (
                     accelerator.process_index in args.video_rm_train_processes

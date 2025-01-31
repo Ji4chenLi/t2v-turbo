@@ -155,6 +155,8 @@ def get_img_reward_fn(precision="fp32"):
         model.to(device)
         if precision == "fp16":
             model.to(torch.float16)
+        elif precision == "bf16":
+            model.to(torch.bfloat16)
 
         image = rm_preprocess(image_inputs).to(device)
         text_input = model.blip.tokenizer(
